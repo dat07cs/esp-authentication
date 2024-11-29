@@ -29,12 +29,11 @@
 
 ## Deploy gRPC server and related services
 - ESP v1 (nginx-based) will be used.
-- The project ID in this example if `experimental-229809`, change it in the configuration files if needed.
+- The project ID in this example is `experimental-229809`, change it in the configuration files if needed.
 - Create 2 service accounts
   - experimental-general: service account for testing purpose and controlling the endpoint services.
     - Create secret for this service account to use later in deployments.
     ```shell
-    # 
     kubectl create secret generic gcloud-service-account \
     --from-file=experimental-general=/Users/datle/experimental-229809-a54f92e47b90.json \
     --dry-run=client -o yaml | kubectl apply -f -
@@ -47,7 +46,7 @@
     - API keys are meant to identify the source project calling the API rather than authenticating the user.
   - [infra/bookstore/api_config_auth.yaml](infra/bookstore/api_config_auth.yaml):
     - Use service accounts to authenticate by specifying authentication rules.
-    - There are a limit to 100 servicer accounts per project and 10 keys per service account by default.
+    - There are a limit to 100 service accounts per project and 10 keys per service account by default.
 - Deployment and service configurations are at [infra/bookstore/grpc-bookstore.yaml](infra/bookstore/grpc-bookstore.yaml).
   - Use 2 different containers for the above 2 different endpoint services.
   - Use the sample gRPC Bookstore server image as backend
@@ -57,7 +56,7 @@
 
 ## Testing
 ### Java
-- [JwtTokenGen.java](src/main/java/com/datle/esp/auth/JwtTokenGen.java)
+- [BookstoreClient.java](src/main/java/com/datle/esp/auth/BookstoreClient.java)
 ```logs
 listShelves=shelves {
   id: 1
