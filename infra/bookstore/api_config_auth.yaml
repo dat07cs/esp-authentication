@@ -1,0 +1,40 @@
+# https://github.com/googleapis/googleapis/blob/master/google/api/service.proto
+type: google.api.Service
+config_version: 3
+
+name: bookstore2.endpoints.experimental-229809.cloud.goog
+
+title: Bookstore gRPC API 2
+apis:
+  - name: endpoints.examples.bookstore.Bookstore
+
+usage:
+  rules:
+    # Allow unregistered calls (calls without API key) for all methods.
+    - selector: "*"
+      allow_unregistered_calls: true
+
+authentication:
+  providers:
+    # General account for our services.
+    - id: experimental-general
+      issuer: experimental-general@experimental-229809.iam.gserviceaccount.com
+      jwks_uri: https://www.googleapis.com/robot/v1/metadata/x509/experimental-general@experimental-229809.iam.gserviceaccount.com
+    # Service accounts which will be granted for developers.
+    - id: dat-service-account
+      issuer: dat-service-account@experimental-229809.iam.gserviceaccount.com
+      jwks_uri: https://www.googleapis.com/robot/v1/metadata/x509/dat-service-account@experimental-229809.iam.gserviceaccount.com
+  rules:
+    # **NOTE:** All service configuration rules follow "last one wins" order.
+    - selector: "*"
+      requirements:
+        - provider_id: experimental-general
+    - selector: |-
+        endpoints.examples.bookstore.Bookstore.ListShelves,
+        endpoints.examples.bookstore.Bookstore.GetShelf,
+        endpoints.examples.bookstore.Bookstore.ListBooks,
+        endpoints.examples.bookstore.Bookstore.GetBook
+      requirements:
+        # Must always specify the provider of the general account
+        - provider_id: experimental-general
+        - provider_id: dat-service-account
