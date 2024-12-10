@@ -1,29 +1,31 @@
-from google.protobuf import empty_pb2
 import grpc
+from google.protobuf import empty_pb2
 
 import bookstore_pb2
 import bookstore_pb2_grpc
-from python.jwt_token_gen import generate_jwt
+from grpc_interceptor import insecure_channel, AuthOptions, ServiceAccountAuth
 
 
-def run(host: str, port: int, api_key: str = None, auth_token: str = None):
-    timeout = 10  # seconds
-    channel = grpc.insecure_channel(f"{host}:{port}")
+def run(host: str, port: int, api_key: str = None, service_account_path: str = None, service_name: str = None):
+    timeout = 3  # seconds
+    auth_options = AuthOptions(
+        api_key=api_key,
+        service_account_auth=ServiceAccountAuth.of(
+            service_account_path=service_account_path,
+            service_name=service_name
+        )
+    )
+    channel = insecure_channel(f"{host}:{port}", auth_options=auth_options)
     stub = bookstore_pb2_grpc.BookstoreStub(channel)
-    metadata = []
-    if api_key:
-        metadata.append(("x-api-key", api_key))
-    if auth_token:
-        metadata.append(("authorization", f"Bearer {auth_token}"))
 
     try:
-        shelves = stub.ListShelves(empty_pb2.Empty(), timeout, metadata=metadata)
+        shelves = stub.ListShelves(empty_pb2.Empty(), timeout)
         print(f"ListShelves: {shelves}")
 
-        first_shelf = stub.GetShelf(bookstore_pb2.GetShelfRequest(shelf=shelves.shelves[0].id), timeout, metadata=metadata)
+        first_shelf = stub.GetShelf(bookstore_pb2.GetShelfRequest(shelf=shelves.shelves[0].id), timeout)
         print(f"GetShelf: {first_shelf}")
 
-        stub.DeleteShelf(bookstore_pb2.DeleteShelfRequest(shelf=-1), timeout, metadata=metadata)
+        stub.DeleteShelf(bookstore_pb2.DeleteShelfRequest(shelf=-1), timeout)
         print("DeleteShelf")
     except grpc.RpcError as rpc_error:
         print(f"{rpc_error.code()}: {rpc_error.details()}")
@@ -38,6 +40,4 @@ if __name__ == "__main__":
     _service_account_file = "/Users/datle/experimental-229809-32e56a607af1.json"  # dat-service-account
     _service_name = "bookstore2.endpoints.experimental-229809.cloud.goog"
 
-    _signed_jwt = generate_jwt(_service_account_file, _service_name)
-
-    run(_host, _auth_token_port, auth_token=_signed_jwt)
+    run(_host, _auth_token_port, service_account_path=_service_account_file, service_name=_service_name)

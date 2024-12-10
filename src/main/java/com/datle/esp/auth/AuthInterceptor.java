@@ -1,6 +1,7 @@
 package com.datle.esp.auth;
 
-import com.google.auth.oauth2.ServiceAccountJwtAccessCredentials;
+import com.datle.esp.auth.JwtToken.ServiceAccountAuth;
+import com.google.auth.oauth2.AccessToken;
 import io.grpc.CallOptions;
 import io.grpc.Channel;
 import io.grpc.ClientCall;
@@ -8,25 +9,19 @@ import io.grpc.ClientInterceptor;
 import io.grpc.ForwardingClientCall;
 import io.grpc.Metadata;
 import io.grpc.MethodDescriptor;
-import java.io.FileInputStream;
-import java.io.IOException;
+import java.time.Duration;
+import java.time.Instant;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public class AuthInterceptor implements ClientInterceptor {
 
     @Nonnull
-    private final ServiceAccountJwtAccessCredentials credentials;
-    @Nonnull
-    private final String serviceName;
-    @Nullable
-    private final String apiKey;
+    private final AuthOptions authOptions;
+    private AccessToken cachedToken;
 
-    public AuthInterceptor(@Nonnull String serviceAccountPath, @Nonnull String serviceName, @Nullable String apiKey)
-            throws IOException {
-        this.credentials = ServiceAccountJwtAccessCredentials.fromStream(new FileInputStream(serviceAccountPath));
-        this.serviceName = serviceName;
-        this.apiKey = apiKey;
+    public AuthInterceptor(@Nonnull AuthOptions authOptions) {
+        this.authOptions = authOptions;
     }
 
     @Override
@@ -35,20 +30,35 @@ public class AuthInterceptor implements ClientInterceptor {
         return new ForwardingClientCall.SimpleForwardingClientCall<>(next.newCall(method, callOptions)) {
             @Override
             public void start(ClientCall.Listener<RespT> responseListener, Metadata headers) {
-                if (apiKey != null) {
+                if (authOptions.apikey() != null) {
                     var apiKeyHeader = Metadata.Key.of("x-api-key", Metadata.ASCII_STRING_MARSHALLER);
-                    headers.put(apiKeyHeader, AuthInterceptor.this.apiKey);
+                    headers.put(apiKeyHeader, authOptions.apikey());
                 }
-                var authTokenHeader = Metadata.Key.of("Authorization", Metadata.ASCII_STRING_MARSHALLER);
-                String jwtToken = genJwtToken(AuthInterceptor.this.credentials, AuthInterceptor.this.serviceName);
-                headers.put(authTokenHeader, "Bearer %s".formatted(jwtToken));
+                String authToken = getAuthToken();
+                if (authToken != null) {
+                    var authTokenHeader = Metadata.Key.of("Authorization", Metadata.ASCII_STRING_MARSHALLER);
+                    headers.put(authTokenHeader, "Bearer %s".formatted(authToken));
+                }
                 super.start(responseListener, headers);
             }
         };
     }
 
-    private static String genJwtToken(ServiceAccountJwtAccessCredentials credentials, String serviceName) {
-        // todo: cache the token so that we do not need to re-generate for every call
-        return JwtTokenGen.generateJwt(credentials, serviceName);
+    private @Nullable String getAuthToken() {
+        if (authOptions.serviceAccountAuth() == null) {
+            return null;
+        }
+        // discard current token if it's going to expire soon
+        if (cachedToken == null || shouldRefresh(cachedToken)) {
+            cachedToken = JwtToken.generateJwt(authOptions.serviceAccountAuth());
+        }
+        return cachedToken.getTokenValue();
     }
+
+    private static boolean shouldRefresh(@Nonnull AccessToken token) {
+        // discard current token if it's going to expire soon
+        return Duration.between(Instant.now(), token.getExpirationTime().toInstant()).toSeconds() < 60;
+    }
+
+    public record AuthOptions(@Nullable String apikey, @Nullable ServiceAccountAuth serviceAccountAuth) {}
 }
