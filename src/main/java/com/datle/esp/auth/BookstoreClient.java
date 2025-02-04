@@ -28,7 +28,7 @@ public class BookstoreClient {
         String apiKey = null;
         String serviceAccountFilePath = "/Users/datle/experimental-229809-32e56a607af1.json"; // dat-service-account
         String serviceName = "bookstore2.endpoints.experimental-229809.cloud.goog";
-        String cacertPath = "/Users/datle/Downloads/bookstore.palexy.com.pem";
+        String cacertPath = "/Users/datle/Downloads/bookstore.example.com.pem";
 
         ServiceAccountAuth serviceAccountAuth = ServiceAccountAuth.fromFile(serviceAccountFilePath, serviceName, 120);
         AuthOptions authOptions = new AuthOptions(apiKey, serviceAccountAuth);

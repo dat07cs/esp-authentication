@@ -1,6 +1,6 @@
 #!/bin/bash
 
-export PROJECT_HOME=/Users/datle/Workspace/palexy/gcp/esp-authentication
+export PROJECT_HOME=/Users/datle/Workspace/example/gcp/esp-authentication
 
 # Generate API descriptor and .pb2 files
 cd $PROJECT_HOME || exit & \
