@@ -1,3 +1,5 @@
+#!/bin/bash
+
 export PROJECT_HOME=/Users/datle/Workspace/palexy/gcp/esp-authentication
 export GCP_PID=experimental-229809
 export CLUSTER_ID=autopilot-cluster-1

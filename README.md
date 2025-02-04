@@ -54,6 +54,26 @@
 - Update environment variables and run the script at
   [infra/bookstore/deploy_apps_and_endpoints.sh](infra/bookstore/deploy_apps_and_endpoints.sh).
 
+## Enable SSL
+- Must use self-managed SSL certificates and update them manually before they expire.
+  Google-managed SSL certificates aren't currently supported by ESP.
+- Generate self-signed SSL certificate for testing as instructed at [nginx/generate_nginx_keys.md](nginx/generate_nginx_keys.md).
+- Create or apply new secret to use in the container configuration.
+```shell
+kubectl create secret generic nginx-ssl \
+  --from-file=./nginx.crt --from-file=./nginx.key \
+  --dry-run=client -o yaml | kubectl apply -f -
+# Verify the secret
+kubectl get secret nginx-ssl -o jsonpath='{.data.nginx\.crt}' | base64 --decode
+```
+- Mount the created secret to nginx SSL volume, and add the ESP startup flag `ssl_port` to enable the SSL port.
+- Redeploy the bookstore services.
+```shell
+kubectl create -f grpc-bookstore.yaml \
+  --dry-run=client -o yaml | kubectl apply -f -
+```
+- [Reference](https://cloud.google.com/endpoints/docs/openapi/enabling-ssl).
+
 ## Testing
 ### Java
 - [BookstoreClient.java](src/main/java/com/datle/esp/auth/BookstoreClient.java)

@@ -35,7 +35,6 @@ class _GenericClientInterceptor(grpc.UnaryUnaryClientInterceptor):
             client_call_details,
             request,
         )
-        print(new_details.metadata)
         if new_response:
             future = Future()
             future.set_result(new_response)
@@ -48,6 +47,9 @@ class _GenericClientInterceptor(grpc.UnaryUnaryClientInterceptor):
 class AuthOptions:
     api_key: Optional[str] = None
     service_account_auth: Optional[ServiceAccountAuth] = None
+
+    def has_auth_option(self):
+        return self.api_key or self.service_account_auth
 
 
 class AuthInterceptor(_GenericClientInterceptor):
@@ -101,20 +103,34 @@ class AuthInterceptor(_GenericClientInterceptor):
                 raise e
 
 
-def insecure_channel(
+def create_channel(
         target: str,
+        *,
         auth_options: Optional[AuthOptions] = None,
-        channel_options: Optional[Sequence[Tuple[str, Any]]] = None
+        channel_options: Optional[Sequence[Tuple[str, Any]]] = None,
+        insecure: bool = False,
+        cacert: Optional[bytes] = None
 ) -> grpc.Channel:
     """
     Args:
         target: The server address.
         auth_options: An optional authentication options object for gRPC requests.
+        If any auth option is specified, a secure channel will always be created.
         channel_options: An optional list of key-value pairs (:term:`channel_arguments`
         in gRPC Core runtime) to configure the channel.
+        insecure: A secure channel will be created by default. Set insecure to True to create an insecure channel.
+        cacert: The PEM-encoded root certificates as a byte string,
+        or None to retrieve them from a default location chosen by gRPC runtime.
+        This param is ignored if there is no auth option specified.
     """
-    interceptors = []
-    if auth_options:
-        interceptors.append(AuthInterceptor(auth_options))
+    channel: grpc.Channel
+    has_auth_option = auth_options and auth_options.has_auth_option()
+    if not insecure or has_auth_option:
+        creds = grpc.ssl_channel_credentials(cacert)
+        channel = grpc.secure_channel(target, credentials=creds, options=channel_options)
+        if has_auth_option:
+            channel = grpc.intercept_channel(channel, AuthInterceptor(auth_options))
+    else:
+        channel = grpc.insecure_channel(target, options=channel_options)
 
-    return grpc.intercept_channel(grpc.insecure_channel(target, options=channel_options), *interceptors)
+    return channel

@@ -1,3 +1,5 @@
+#!/bin/bash
+
 export PROJECT_HOME=/Users/datle/Workspace/palexy/gcp/esp-authentication
 
 # Generate API descriptor and .pb2 files
